@@ -13,7 +13,8 @@ import {
   RefreshCw,
   Calculator,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -44,6 +45,7 @@ const STORAGE_KEY = 'retirement_simulation_params_v1';
 
 const DEFAULT_PARAMS: SimulationParams = {
   currentAge: 34,
+  currentYear: 2026,
   targetLifeSpan: 90,
   currentAssets: 42000, 
   incomes: [
@@ -76,7 +78,7 @@ const DEFAULT_PARAMS: SimulationParams = {
     }
   ],
   expectedReturn: 3.0,
-  investmentStopAge: 55
+  investmentStopYear: 2047
 };
 
 export default function App() {
@@ -116,9 +118,16 @@ export default function App() {
     reason: string;
   }>({ target: 'couple', age: 40, amount: 4000, reason: '' });
 
-  const baseResult = useMemo(() => runSimulation({ ...params, expectedReturn: 3.0 }), [params.currentAge, params.targetLifeSpan, params.currentAssets, params.incomes, params.coupleExpenses, params.children, params.investmentStopAge]);
+  const baseResult = useMemo(() => runSimulation({ ...params, expectedReturn: 3.0 }), [params.currentAge, params.currentYear, params.targetLifeSpan, params.currentAssets, params.incomes, params.coupleExpenses, params.children, params.investmentStopYear]);
   const result = useMemo(() => runSimulation(params), [params]);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [isMilestoneTooltipVisible, setIsMilestoneTooltipVisible] = useState(false);
+
+  useEffect(() => {
+    if (isPanelExpanded) {
+      setIsMilestoneTooltipVisible(true);
+    }
+  }, [isPanelExpanded]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [expenseCalcTarget, setExpenseCalcTarget] = useState<'couple' | number | null>(null);
@@ -311,33 +320,31 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 p-6 grid grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 p-6 grid grid-cols-12 gap-6 max-w-[1900px] mx-auto w-full">
         
         {/* Row 1: Key Metrics */}
-        <section className="col-span-12 order-2 lg:order-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="col-span-12 lg:col-span-8 order-2 lg:order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">연간 저축 금액</p>
-                <div className="flex items-center gap-2">
-                  <select 
-                    value={savingsYear}
-                    onChange={(e) => setSavingsYear(parseInt(e.target.value))}
-                    className="bg-slate-100 border-none rounded-lg px-2 py-1 text-[12px] font-normal text-slate-700 outline-none focus:ring-1 focus:ring-brand cursor-pointer"
-                  >
-                    {result.yearlyData.map(d => (
-                      <option key={d.year} value={d.year}>
-                        {d.year}년 ({d.age}세)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">연간 저축 금액</p>
+                <select 
+                  value={savingsYear}
+                  onChange={(e) => setSavingsYear(parseInt(e.target.value))}
+                  className="bg-slate-100 border-none rounded-lg px-2 py-0.5 text-[9px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand cursor-pointer"
+                >
+                  {result.yearlyData.map(d => (
+                    <option key={d.year} value={d.year}>
+                      {d.year}년
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className={cn("text-3xl font-bold tracking-tight", savingsDataForYear.investmentAmount >= 0 ? "text-slate-900" : "text-rose-600")}>
                   {formatEok(savingsDataForYear.investmentAmount)}
                 </span>
-                <span className="text-[16px] font-bold px-1.5 py-0.5 rounded text-[#020813] bg-white">
+                <span className="text-[16px] font-bold px-1.5 py-0.5 rounded text-[#020813] bg-white whitespace-nowrap">
                   누적 {formatEok(savingsDataForYear.assetsEnd)}
                 </span>
               </div>
@@ -353,69 +360,108 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">보수적 수익율</p>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-3xl font-bold tracking-tight text-slate-900">
-                  3.0%
-                </span>
-              </div>
-            </div>
-            <div className="mt-auto pt-4 border-t border-slate-50 space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400 text-[14px]">자산 고갈 시점</span>
-                <span className="font-bold text-[14px] text-black">
-                  {baseResult.depletionAge ? `${baseResult.depletionAge}세` : "없음"}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-slate-400 text-[14px]">유산 금액 ({params.coupleExpenses.deathAge}세)</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-bold text-black text-[14px] border-b border-[#000000]">{formatEok(baseInheritance)}</span>
-                  <span className="text-[12px] text-[#6f6d6d] font-medium">
-                    (현재가치: {formatEok(baseInheritance / Math.pow(1 + params.coupleExpenses.inflationRate, params.coupleExpenses.deathAge - params.currentAge))})
+          <div className="relative group">
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ 
+                delay: 0.8, 
+                duration: 0.5,
+                type: "spring",
+                stiffness: 260,
+                damping: 20 
+              }}
+              className="absolute -top-[26px] left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none"
+            >
+              예금 금리 기준 예상되는 자산 고갈 시점입니다
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 rotate-45" />
+            </motion.div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between h-full">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">보수적 수익율</p>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-3xl font-bold tracking-tight text-slate-900">
+                    3.0%
                   </span>
+                </div>
+              </div>
+              <div className="mt-auto pt-4 border-t border-slate-50 space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-400 text-[14px]">자산 고갈 시점</span>
+                  <span className="font-bold text-[14px] text-black">
+                    {baseResult.depletionAge ? `${baseResult.depletionAge}세` : "없음"}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 text-[11px]">
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-slate-400 text-[14px]">유산 금액 ({params.coupleExpenses.deathAge}세)</span>
+                    <span className="font-bold text-black text-[14px] border-b border-[#000000]">{formatEok(baseInheritance)}</span>
+                  </div>
+                  <div className="flex justify-end w-full">
+                    <span className="text-[12px] text-[#6f6d6d] font-medium">
+                      (현재가치: {formatEok(baseInheritance / Math.pow(1 + params.coupleExpenses.inflationRate, params.coupleExpenses.deathAge - params.currentAge))})
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">가정 수익률 시나리오</p>
-              </div>
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <span className="text-3xl font-bold tracking-tight text-brand">
-                  {params.expectedReturn.toFixed(1)}%
-                </span>
-                <div className="flex-1 max-w-[120px]">
-                  <input 
-                    type="range" 
-                    min={0} 
-                    max={20} 
-                    step={0.1}
-                    value={params.expectedReturn} 
-                    onChange={(e) => setParams({...params, expectedReturn: parseFloat(e.target.value)})}
-                    className="w-full h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
-                  />
+          <div className="relative group">
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ 
+                delay: 1, 
+                duration: 0.5,
+                type: "spring",
+                stiffness: 260,
+                damping: 20 
+              }}
+              className="absolute -top-[26px] left-1/2 -translate-x-1/2 bg-brand text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none"
+            >
+              예상되는 평균 투자 수익률을 설정해보세요
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-brand rotate-45" />
+            </motion.div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between h-full">
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">가정 수익률 시나리오</p>
+                </div>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <span className="text-3xl font-bold tracking-tight text-brand">
+                    {params.expectedReturn.toFixed(1)}%
+                  </span>
+                  <div className="flex-1 max-w-[120px]">
+                    <input 
+                      type="range" 
+                      min={0} 
+                      max={20} 
+                      step={0.1}
+                      value={params.expectedReturn} 
+                      onChange={(e) => setParams({...params, expectedReturn: parseFloat(e.target.value)})}
+                      className="w-full h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="mt-auto pt-4 border-t border-slate-50 space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400 text-[14px]">자산 고갈 시점</span>
-                <span className="font-bold text-[14px] text-black">
-                  {result.depletionAge ? `${result.depletionAge}세` : "없음"}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-slate-400 text-[14px]">유산 금액 ({params.coupleExpenses.deathAge}세)</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-bold text-black text-[14px] border-b border-[#000000]">{formatEok(inheritance)}</span>
-                  <span className="text-[12px] text-[#6f6d6d] font-medium">
-                    (현재가치: {formatEok(inheritance / Math.pow(1 + params.coupleExpenses.inflationRate, params.coupleExpenses.deathAge - params.currentAge))})
+              <div className="mt-auto pt-4 border-t border-slate-50 space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-400 text-[14px]">자산 고갈 시점</span>
+                  <span className="font-bold text-[14px] text-black">
+                    {result.depletionAge ? `${result.depletionAge}세` : "없음"}
                   </span>
+                </div>
+                <div className="flex flex-col gap-1 text-[11px]">
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-slate-400 text-[14px]">유산 금액 ({params.coupleExpenses.deathAge}세)</span>
+                    <span className="font-bold text-black text-[14px] border-b border-[#000000]">{formatEok(inheritance)}</span>
+                  </div>
+                  <div className="flex justify-end w-full text-right">
+                    <span className="text-[12px] text-[#6f6d6d] font-medium">
+                      (현재가치: {formatEok(inheritance / Math.pow(1 + params.coupleExpenses.inflationRate, params.coupleExpenses.deathAge - params.currentAge))})
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -423,7 +469,7 @@ export default function App() {
         </section>
 
         {/* Row 3: Charts & Inputs */}
-        <section className="col-span-12 order-1 lg:order-2 lg:col-span-3 space-y-6">
+        <section className="col-span-12 lg:col-span-4 lg:row-span-2 order-1 lg:order-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
             <div 
               className="flex items-center justify-between border-b border-slate-100 pb-4 cursor-pointer group"
@@ -431,7 +477,7 @@ export default function App() {
             >
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">변수 제어판</h2>
               <motion.div
-                animate={{ rotate: isPanelExpanded ? 0 : 180 }}
+                animate={{ rotate: isPanelExpanded ? 180 : 0 }}
                 transition={{ duration: 0.2 }}
                 className="text-slate-400 group-hover:text-brand"
               >
@@ -451,95 +497,94 @@ export default function App() {
                   <div className="space-y-6 p-4 rounded-xl bg-[#ebebeb]">
                     {/* Basic Info */}
                     <div className="space-y-4">
-                      <h3 className="text-xs font-black text-black uppercase tracking-widest">기본 정보</h3>
-                      <InputGroup label="현재 나이(지현)" value={params.currentAge} unit="세" onChange={(v) => setParams({...params, currentAge: v})} />
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
-                          <div className="flex items-center gap-2">
-                            <label className="text-[#5f5d5d]">현재 자산</label>
-                            <button 
-                              onClick={syncAssets}
-                              disabled={isSyncing}
-                              className={cn(
-                                "px-2 py-0.5 rounded text-[10px] bg-brand text-white flex items-center hover:bg-brand/90 transition-all disabled:opacity-50",
-                                isSyncing && "animate-pulse"
-                              )}
-                            >
-                              [연동]
-                            </button>
+                      <h3 className="text-xs font-black text-brand uppercase tracking-widest">기본 정보</h3>
+                      <div className="p-4 rounded-xl bg-white shadow-sm border border-slate-50 space-y-4">
+                        <InputGroup label="현재 연도" value={params.currentYear} unit="년" min={2020} max={2100} onChange={(v) => setParams({...params, currentYear: v})} />
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
+                            <div className="flex items-center gap-2">
+                              <label className="text-[#5f5d5d]">현재 자산</label>
+                            </div>
+                            <span className="text-slate-900">{params.currentAssets.toLocaleString()}만원</span>
                           </div>
-                          <span className="text-slate-900">{params.currentAssets.toLocaleString()}만원</span>
-                        </div>
-                        <input 
-                          type="range" 
-                          min={0} 
-                          max={500000} 
-                          step={1}
-                          value={params.currentAssets} 
-                          onChange={(e) => setParams({...params, currentAssets: parseFloat(e.target.value)})}
-                          className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
-                        />
-                      </div>
-                      <InputGroup 
-                        label="투자 중단 시점" 
-                        value={params.investmentStopAge} 
-                        unit="세" 
-                        max={80} 
-                        min={params.currentAge} 
-                        onChange={(v) => setParams({...params, investmentStopAge: v})} 
-                      />
-                    </div>
-
-                    {/* Incomes */}
-                    {params.incomes.map((source, idx) => (
-                      <div key={idx} className="space-y-4 pt-4 border-t border-slate-50">
-                        <h3 className="text-xs font-black text-black uppercase tracking-widest">{source.label}</h3>
-                        <InputGroup label={`${source.label} 나이`} value={source.currentAge} unit="세" max={80} onChange={(v) => updateIncome(idx, { currentAge: v })} />
-                        <InputGroup label="소득금액" value={source.amount} unit="만원" max={30000} onChange={(v) => updateIncome(idx, { amount: v })} />
-                        <InputGroup label="은퇴 시점" value={source.retirementAge} unit="세" max={80} onChange={(v) => updateIncome(idx, { retirementAge: v })} />
-                        <InputGroup label="예상 인상율" value={source.growthRate * 100} unit="%" step={0.1} max={10} onChange={(v) => updateIncome(idx, { growthRate: v / 100 })} />
-                      </div>
-                    ))}
-
-                    {/* Couple Expenses */}
-                    <div className="space-y-4 pt-4 border-t border-slate-100 p-4 rounded-xl bg-[#ffffff]">
-                      <h3 className="text-xs font-black text-black bg-[#f5f5f5] px-2 py-1 rounded inline-block uppercase tracking-widest mb-2">지출 항목</h3>
-                      
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
-                          <label className="text-[#5f5d5d]">연간 지출</label>
-                          <span className="text-slate-900">{params.coupleExpenses.baseAmount.toLocaleString()}만원</span>
-                        </div>
-                        
-                        <button 
-                          onClick={() => setExpenseCalcTarget('couple')}
-                          className="w-full px-2 py-1.5 rounded text-[10px] bg-slate-800 text-white flex items-center justify-center gap-1 hover:bg-slate-700 transition-all shadow-sm"
-                        >
-                          <Calculator className="w-2.5 h-2.5" />
-                          지출 계산기
-                        </button>
-
-                        <div className="px-1">
                           <input 
                             type="range" 
                             min={0} 
-                            max={30000} 
+                            max={500000} 
                             step={1}
-                            value={params.coupleExpenses.baseAmount} 
-                            onChange={(e) => setParams({...params, coupleExpenses: {...params.coupleExpenses, baseAmount: parseFloat(e.target.value)}})}
+                            value={params.currentAssets} 
+                            onChange={(e) => setParams({...params, currentAssets: parseFloat(e.target.value)})}
                             className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
                           />
                         </div>
+                        <InputGroup 
+                          label="투자 중단 시점" 
+                          value={params.investmentStopYear} 
+                          unit="년" 
+                          max={params.currentYear + 80} 
+                          min={params.currentYear} 
+                          onChange={(v) => setParams({...params, investmentStopYear: v})} 
+                        />
                       </div>
+                    </div>
 
-                      <InputGroup label="사망 시 예상 나이" value={params.coupleExpenses.deathAge} unit="세" max={110} onChange={(v) => setParams({...params, coupleExpenses: {...params.coupleExpenses, deathAge: v}})} />
-                      <InputGroup label="물가 인상율" value={params.coupleExpenses.inflationRate * 100} unit="%" step={0.1} max={10} onChange={(v) => setParams({...params, coupleExpenses: {...params.coupleExpenses, inflationRate: v / 100}})} />
+                    {/* Incomes */}
+                    <div className="space-y-4 mt-16 relative">
+                      <h3 className="text-xs font-black text-brand uppercase tracking-widest">소득 정보</h3>
+                      
+                      {params.incomes.map((source, idx) => (
+                        <div key={idx} className="space-y-4 p-4 rounded-xl bg-white shadow-sm border border-slate-50">
+                          <h3 className="font-black text-black bg-slate-50 rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>{source.label}</h3>
+                          <InputGroup label="현재 나이" value={source.currentAge} unit="세" max={80} onChange={(v) => updateIncome(idx, { currentAge: v })} />
+                          <InputGroup label="소득금액" value={source.amount} unit="만원" max={30000} onChange={(v) => updateIncome(idx, { amount: v })} />
+                          <InputGroup label="은퇴 시점" value={source.retirementAge} unit="세" max={80} onChange={(v) => updateIncome(idx, { retirementAge: v })} />
+                          <InputGroup label="예상 인상율" value={source.growthRate * 100} unit="%" step={0.1} max={10} onChange={(v) => updateIncome(idx, { growthRate: v / 100 })} />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Couple Expenses */}
+                    <div className="space-y-4 mt-16 relative">
+                      <h3 className="text-xs font-black text-brand uppercase tracking-widest">지출 항목</h3>
+                      
+                      <div className="p-4 rounded-xl bg-white shadow-sm border border-slate-50 space-y-4">
+                        <h3 className="font-black text-[#020813] bg-[#eeeeee] rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>부부 지출</h3>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
+                            <label className="text-[#5f5d5d]">연간 지출</label>
+                            <span className="text-slate-900">{params.coupleExpenses.baseAmount.toLocaleString()}만원</span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => setExpenseCalcTarget('couple')}
+                            className="w-full px-2 py-1.5 rounded text-[10px] bg-slate-800 text-white flex items-center justify-center gap-1 hover:bg-slate-700 transition-all shadow-sm"
+                          >
+                            <Calculator className="w-2.5 h-2.5" />
+                            지출 계산기
+                          </button>
+
+                          <div className="px-1">
+                            <input 
+                              type="range" 
+                              min={0} 
+                              max={30000} 
+                              step={1}
+                              value={params.coupleExpenses.baseAmount} 
+                              onChange={(e) => setParams({...params, coupleExpenses: {...params.coupleExpenses, baseAmount: parseFloat(e.target.value)}})}
+                              className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
+                            />
+                          </div>
+                        </div>
+
+                        <InputGroup label="사망 시 예상 나이" value={params.coupleExpenses.deathAge} unit="세" max={110} onChange={(v) => setParams({...params, coupleExpenses: {...params.coupleExpenses, deathAge: v}})} />
+                        <InputGroup label="물가 인상율" value={params.coupleExpenses.inflationRate * 100} unit="%" step={0.1} max={10} onChange={(v) => setParams({...params, coupleExpenses: {...params.coupleExpenses, inflationRate: v / 100}})} />
+                      </div>
                     </div>
 
                     {/* Children Expenses */}
                     {params.children.map((child, idx) => (
-                      <div key={idx} className="space-y-4 pt-4 border-t border-slate-100 p-4 rounded-xl bg-[#ffffff]">
-                        <h3 className="text-[12px] font-black text-[#020813] bg-[#eeeeee] px-2 py-1 rounded inline-block uppercase tracking-widest mb-2">{child.label} 지출</h3>
+                      <div key={idx} className="space-y-4 p-4 rounded-xl bg-white shadow-sm border border-slate-50 mt-4">
+                        <h3 className="font-black text-[#020813] bg-[#eeeeee] rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>{child.label} 지출</h3>
                         
                         <InputGroup 
                           label="출생(예정) 연도" 
@@ -585,10 +630,37 @@ export default function App() {
 
 
                     {/* Multi-purpose Milestone Adder */}
-                    <div className="space-y-4 pt-6 border-t-2 border-slate-100">
-                      <h3 className="text-xs font-black text-brand uppercase tracking-widest flex items-center gap-1">
-                        <Plus className="w-3 h-3" /> 조정 시점
-                      </h3>
+                    <div className="space-y-4 mt-16 pt-6 border-t-2 border-slate-100 relative">
+                      <div className="flex items-center gap-2 relative">
+                        <h3 className="text-xs font-black text-brand uppercase tracking-widest flex items-center gap-1">
+                          <Plus className="w-3 h-3" /> 조정 시점
+                        </h3>
+                        
+                        <AnimatePresence>
+                          {isMilestoneTooltipVisible && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              className="absolute bottom-full left-0 mb-3 bg-[#221f1f] text-[#fffdfd] shadow-xl rounded-xl p-3 z-50 w-[245px]"
+                              style={{ height: '67.625px', marginBottom: '7px' }}
+                            >
+                              <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-[#171717] rotate-45" />
+                              <div className="relative flex justify-between items-start gap-2">
+                                <p className="text-[11px] text-[#eff4fa] leading-relaxed font-medium" style={{ marginTop: '-4px' }}>
+                                  자녀 입학, 주택 마련 등 특정 시점의 생활비 변경을 반영합니다. 이후에는 조정된 금액 기준으로 물가상승률이 적용됩니다.
+                                </p>
+                                <button 
+                                  onClick={() => setIsMilestoneTooltipVisible(false)}
+                                  className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+                                >
+                                  <X className="w-3 h-3 mr-[-3px] mb-[-2px] text-[#fbfdff]" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <div className="bg-slate-50 p-4 rounded-xl space-y-3">
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-[#5f5d5d] uppercase">대상</label>
@@ -648,21 +720,18 @@ export default function App() {
                           
                           return (
                             <div key={`c-${i}`} className={cn(
-                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1",
-                              m.adjustmentAmount < 0 ? "bg-teal-50/50 border-teal-100" : "bg-white border-slate-100"
+                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1 transition-all hover:shadow-md",
+                              m.adjustmentAmount < 0 
+                                ? "bg-teal-50/50 border-teal-100" 
+                                : "bg-white border-[#f67373]"
                             )}>
                               <div className="pr-6">
-                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-slate-900")}>
-                                  부부: <span className="font-bold underline decoration-slate-200 underline-offset-4">{m.age}세</span> → {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
+                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}>
+                                  부부({m.reason ? `${m.reason}, ` : ''}{m.age}세) {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
                                 </span>
                                 <span className="block text-[10px] text-[#5b5c5c] font-medium leading-relaxed">
                                   미래가치: <span className="font-bold text-[#4a4b4b]">{m.adjustmentAmount >= 0 ? '+' : ''}{Math.round(futureValue).toLocaleString()}</span>만원
                                 </span>
-                                {m.reason && (
-                                  <div className="text-[11px] text-slate-400 mt-1 pl-1 border-l-2 border-slate-100 bg-slate-50/50 py-0.5 px-2 rounded font-normal">
-                                    {m.reason}
-                                  </div>
-                                )}
                               </div>
                               <button 
                                 onClick={() => removeMilestone('couple', i)} 
@@ -680,21 +749,18 @@ export default function App() {
 
                           return (
                             <div key={`ch-${i}`} className={cn(
-                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1",
-                              m.adjustmentAmount < 0 ? "bg-teal-50/50 border-teal-100" : "bg-white border-slate-100"
+                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1 transition-all hover:shadow-md",
+                              m.adjustmentAmount < 0 
+                                ? "bg-teal-50/50 border-teal-100" 
+                                : "bg-white border-[#f67373]"
                             )}>
                               <div className="pr-6">
-                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-slate-900")}>
-                                  {m.childLabel}: <span className="font-bold underline decoration-slate-200 underline-offset-4">{m.childAge}세</span> → {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
+                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}>
+                                  {m.childLabel}({m.reason ? `${m.reason}, ` : ''}{m.childAge}세) {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
                                 </span>
                                 <span className="block text-[10px] text-[#5b5c5c] font-medium leading-relaxed">
                                   미래가치: <span className="font-bold text-[#4a4b4b]">{m.adjustmentAmount >= 0 ? '+' : ''}{Math.round(futureValue).toLocaleString()}</span>만원
                                 </span>
-                                {m.reason && (
-                                  <div className="text-[11px] text-slate-400 mt-1 pl-1 border-l-2 border-slate-100 bg-slate-50/50 py-0.5 px-2 rounded font-normal">
-                                    {m.reason}
-                                  </div>
-                                )}
                               </div>
                               <button 
                                 onClick={() => removeMilestone(m.childLabel, m.idx)} 
@@ -715,16 +781,13 @@ export default function App() {
         </section>
 
         {/* Dashboard Center: Chart */}
-        <section className="col-span-12 order-3 lg:col-span-9 space-y-6">
+        <section className="col-span-12 lg:col-span-8 order-3 lg:order-3 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[480px]">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-sm font-bold flex items-center gap-2 text-slate-800">
                 <TrendingUp className="w-4 h-4 text-brand" />
                 생애 순자산 추이 시뮬레이션
               </h2>
-              <div className="flex gap-4 text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand rounded-full"></div> 현재 전략</span>
-              </div>
             </div>
             
             <div className="flex-1 w-full">

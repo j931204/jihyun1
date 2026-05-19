@@ -3,6 +3,7 @@ import { SimulationParams, YearlyData, SimulationResult } from '../types';
 export function runSimulation(params: SimulationParams): SimulationResult {
   const {
     currentAge,
+    currentYear,
     targetLifeSpan,
     currentAssets,
     incomes,
@@ -20,14 +21,14 @@ export function runSimulation(params: SimulationParams): SimulationResult {
   let childRunningBases = children.map(c => c.baseAmount);
 
   for (let age = currentAge; age <= targetLifeSpan; age++) {
-    const year = new Date().getFullYear() + (age - currentAge);
+    const year = currentYear + (age - currentAge);
     const yearsElapsed = age - currentAge;
 
     const events: string[] = [];
 
     // 1. Income Calculation
     let totalIncome = 0;
-    if (age < params.investmentStopAge) {
+    if (year < params.investmentStopYear) {
       incomes.forEach(source => {
         const sourceAge = source.currentAge + (age - currentAge);
         if (sourceAge < source.retirementAge) {
@@ -38,8 +39,8 @@ export function runSimulation(params: SimulationParams): SimulationResult {
           events.push(`${source.label} 은퇴 (${sourceAge}세)`);
         }
       });
-    } else if (age === params.investmentStopAge) {
-      events.push(`투자 중단 시점 (${age}세)`);
+    } else if (year === params.investmentStopYear) {
+      events.push(`투자 중단 시점 (${year}년)`);
     }
 
     // 2. Expense Calculation
@@ -97,7 +98,7 @@ export function runSimulation(params: SimulationParams): SimulationResult {
 
     const assetsStart = currentAssetsValue;
     const investmentAmount = totalIncome - totalExpenses;
-    const returnAmount = age < params.investmentStopAge ? assetsStart * (expectedReturn / 100) : 0;
+    const returnAmount = year < params.investmentStopYear ? assetsStart * (expectedReturn / 100) : 0;
     const assetsEnd = assetsStart + investmentAmount + returnAmount;
 
     yearlyData.push({
@@ -149,11 +150,11 @@ function checkSurvival(params: SimulationParams, testReturn: number): boolean {
   let childBases = params.children.map(c => c.baseAmount);
 
   for (let age = params.currentAge; age <= params.targetLifeSpan; age++) {
-    const year = new Date().getFullYear() + (age - params.currentAge);
+    const year = params.currentYear + (age - params.currentAge);
     const yearsElapsed = age - params.currentAge;
     
     let totalIncome = 0;
-    if (age < params.investmentStopAge) {
+    if (year < params.investmentStopYear) {
       params.incomes.forEach(source => {
         const sourceAge = source.currentAge + (age - params.currentAge);
         if (sourceAge < source.retirementAge) {
@@ -190,7 +191,7 @@ function checkSurvival(params: SimulationParams, testReturn: number): boolean {
     });
 
     const netFlow = totalIncome - totalExpenses;
-    const currentReturn = age < params.investmentStopAge ? (1 + testReturn / 100) : 1;
+    const currentReturn = year < params.investmentStopYear ? (1 + testReturn / 100) : 1;
     assets = (assets * currentReturn) + netFlow;
     if (assets < 0 && age < params.targetLifeSpan) return false;
   }

@@ -48,13 +48,14 @@ export interface CoupleExpenseConfig {
 
 export interface SimulationParams {
   currentAge: number;
+  currentYear: number;
   targetLifeSpan: number;
   currentAssets: number;
   incomes: IncomeSource[];
   coupleExpenses: CoupleExpenseConfig;
   children: ChildExpenseConfig[];
   expectedReturn: number;
-  investmentStopAge: number;
+  investmentStopYear: number;
 }
 
 export interface YearlyData {
