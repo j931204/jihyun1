@@ -329,13 +329,13 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">연간 저축 금액</p>
                 <select 
-                  value={savingsYear}
-                  onChange={(e) => setSavingsYear(parseInt(e.target.value))}
+                  value={savingsYear || new Date().getFullYear()}
+                  onChange={(e) => setSavingsYear(parseInt(e.target.value) || new Date().getFullYear())}
                   className="bg-slate-100 border-none rounded-lg px-2 py-0.5 text-[9px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand cursor-pointer"
                 >
                   {result.yearlyData.map(d => (
                     <option key={d.year} value={d.year}>
-                      {d.year}년
+                      {(d.year || 0)}년
                     </option>
                   ))}
                 </select>
@@ -499,6 +499,7 @@ export default function App() {
                     <div className="space-y-4">
                       <h3 className="text-xs font-black text-brand uppercase tracking-widest">기본 정보</h3>
                       <div className="p-4 rounded-xl bg-white shadow-sm border border-slate-50 space-y-4">
+                        <InputGroup label="현재 나이" value={params.currentAge} unit="세" min={20} max={80} onChange={(v) => setParams({...params, currentAge: v})} />
                         <InputGroup label="현재 연도" value={params.currentYear} unit="년" min={2020} max={2100} onChange={(v) => setParams({...params, currentYear: v})} />
                         <div className="space-y-2">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
@@ -512,8 +513,8 @@ export default function App() {
                             min={0} 
                             max={500000} 
                             step={1}
-                            value={params.currentAssets} 
-                            onChange={(e) => setParams({...params, currentAssets: parseFloat(e.target.value)})}
+                            value={params.currentAssets || 0} 
+                            onChange={(e) => setParams({...params, currentAssets: parseFloat(e.target.value) || 0})}
                             className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
                           />
                         </div>
@@ -568,8 +569,8 @@ export default function App() {
                               min={0} 
                               max={30000} 
                               step={1}
-                              value={params.coupleExpenses.baseAmount} 
-                              onChange={(e) => setParams({...params, coupleExpenses: {...params.coupleExpenses, baseAmount: parseFloat(e.target.value)}})}
+                              value={params.coupleExpenses.baseAmount || 0} 
+                              onChange={(e) => setParams({...params, coupleExpenses: {...params.coupleExpenses, baseAmount: parseFloat(e.target.value) || 0}})}
                               className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
                             />
                           </div>
@@ -614,8 +615,8 @@ export default function App() {
                               min={0} 
                               max={10000} 
                               step={1}
-                              value={child.baseAmount} 
-                              onChange={(e) => updateChild(idx, { baseAmount: parseFloat(e.target.value) })}
+                              value={child.baseAmount || 0} 
+                              onChange={(e) => updateChild(idx, { baseAmount: parseFloat(e.target.value) || 0 })}
                               className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
                             />
                           </div>
@@ -993,19 +994,21 @@ function MetricCard({ label, value, status, color = 'slate' }: {
 function InputGroup({ label, value, unit, onChange, step = 1, max = 100, min }: { label: string, value: number, unit: string, onChange: (v: number) => void, step?: number, max?: number, min?: number }) {
   const defaultMin = label.includes('나이') ? 1 : 0;
   const finalMin = min !== undefined ? min : defaultMin;
+  const displayValue = isNaN(value) ? 0 : value;
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
         <label className="text-[#5f5d5d]">{label}</label>
-        <span className="text-slate-900">{value.toLocaleString()}{unit}</span>
+        <span className="text-slate-900">{displayValue.toLocaleString()}{unit}</span>
       </div>
       <input 
         type="range" 
         min={finalMin} 
         max={max} 
         step={step}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        value={displayValue}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
       />
     </div>
