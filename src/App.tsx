@@ -548,7 +548,7 @@ export default function App() {
                       <h3 className="text-xs font-black text-brand uppercase tracking-widest">지출 항목</h3>
                       
                       <div className="p-4 rounded-xl bg-white shadow-sm border border-slate-50 space-y-4">
-                        <h3 className="font-black text-[#020813] bg-[#eeeeee] rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>부부 지출</h3>
+                        <h3 className="text-[12px] font-black text-[#020813] bg-[#eeeeee] px-2 py-1 rounded inline-block uppercase tracking-widest mb-2">부부 지출</h3>
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
                             <label className="text-[#5f5d5d]">연간 지출</label>
@@ -584,7 +584,7 @@ export default function App() {
                     {/* Children Expenses */}
                     {params.children.map((child, idx) => (
                       <div key={idx} className="space-y-4 p-4 rounded-xl bg-white shadow-sm border border-slate-50 mt-4">
-                        <h3 className="font-black text-[#020813] bg-[#eeeeee] rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>{child.label} 지출</h3>
+                        <h3 className="text-[12px] font-black text-[#020813] bg-[#eeeeee] px-2 py-1 rounded inline-block uppercase tracking-widest mb-2">{child.label} 지출</h3>
                         
                         <InputGroup 
                           label="출생(예정) 연도" 
