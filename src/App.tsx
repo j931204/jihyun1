@@ -61,7 +61,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   children: [
     {
       label: '자녀',
-      birthYear: 2024,
+      birthYear: 2027,
       baseAmount: 600,
       inflationRate: 0.025,
       independenceAge: 30,
@@ -83,6 +83,19 @@ const DEFAULT_PARAMS: SimulationParams = {
 
 export default function App() {
   const [params, setParams] = useState<SimulationParams>(DEFAULT_PARAMS);
+  const [savingsYear, setSavingsYear] = useState<number>(DEFAULT_PARAMS.currentYear);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [isMilestoneTooltipVisible, setIsMilestoneTooltipVisible] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [expenseCalcTarget, setExpenseCalcTarget] = useState<'couple' | number | null>(null);
+  const [expenseItems, setExpenseItems] = useState<{ id: string, label: string, amount: number }[]>([
+    { id: '1', label: '주택(대출/월세)', amount: 150 },
+    { id: '2', label: '식비', amount: 120 },
+    { id: '3', label: '통신/공과금', amount: 30 },
+    { id: '4', label: '보험', amount: 40 },
+    { id: '5', label: '교통/차량', amount: 50 },
+    { id: '6', label: '문화/생활', amount: 80 },
+  ]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -90,8 +103,51 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && 'currentAge' in parsed) {
-          setParams(parsed);
+        if (parsed && typeof parsed === 'object' && ('currentAge' in parsed || 'currentYear' in parsed)) {
+          // Deep validation of required structures to prevent crashes
+          const validatedParams: SimulationParams = {
+            ...DEFAULT_PARAMS,
+            ...parsed,
+            incomes: Array.isArray(parsed.incomes) ? parsed.incomes.map((i: any) => ({
+              label: i.label || '소득원',
+              amount: Number(i.amount) || 0,
+              currentAge: Number(i.currentAge) || 30,
+              retirementAge: Number(i.retirementAge) || 60,
+              growthRate: Number(i.growthRate) || 0
+            })) : DEFAULT_PARAMS.incomes,
+            children: Array.isArray(parsed.children) ? parsed.children.map((c: any) => ({
+              label: c.label || '자녀',
+              birthYear: Number(c.birthYear) || 2027,
+              baseAmount: Number(c.baseAmount) || 0,
+              inflationRate: Number(c.inflationRate) || 0.025,
+              independenceAge: Number(c.independenceAge) || 30,
+              milestones: Array.isArray(c.milestones) ? c.milestones.map((m: any) => ({
+                childAge: Number(m.childAge) || 0,
+                adjustmentAmount: Number(m.adjustmentAmount) || 0,
+                reason: m.reason || ''
+              })) : []
+            })) : DEFAULT_PARAMS.children,
+            coupleExpenses: parsed.coupleExpenses ? { 
+              ...DEFAULT_PARAMS.coupleExpenses, 
+              ...parsed.coupleExpenses,
+              baseAmount: Number(parsed.coupleExpenses.baseAmount) || 0,
+              inflationRate: Number(parsed.coupleExpenses.inflationRate) || 0.025,
+              deathAge: Number(parsed.coupleExpenses.deathAge) || 90,
+              milestones: Array.isArray(parsed.coupleExpenses.milestones) ? parsed.coupleExpenses.milestones.map((m: any) => ({
+                age: Number(m.age) || 0,
+                adjustmentAmount: Number(m.adjustmentAmount) || 0,
+                reason: m.reason || ''
+              })) : []
+            } : DEFAULT_PARAMS.coupleExpenses,
+            currentAssets: Number(parsed.currentAssets) || 0,
+            currentYear: Number(parsed.currentYear) || 2026,
+            currentAge: Number(parsed.currentAge) || 34,
+            investmentStopYear: Number(parsed.investmentStopYear) || 2047,
+            expectedReturn: Number(parsed.expectedReturn) || 3.0,
+            targetLifeSpan: Number(parsed.targetLifeSpan) || 90
+          };
+          setParams(validatedParams);
+          setSavingsYear(validatedParams.currentYear);
         }
       } catch (e) {
         console.error('Failed to load saved params:', e);
@@ -120,25 +176,12 @@ export default function App() {
 
   const baseResult = useMemo(() => runSimulation({ ...params, expectedReturn: 3.0 }), [params.currentAge, params.currentYear, params.targetLifeSpan, params.currentAssets, params.incomes, params.coupleExpenses, params.children, params.investmentStopYear]);
   const result = useMemo(() => runSimulation(params), [params]);
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [isMilestoneTooltipVisible, setIsMilestoneTooltipVisible] = useState(false);
 
   useEffect(() => {
     if (isPanelExpanded) {
       setIsMilestoneTooltipVisible(true);
     }
   }, [isPanelExpanded]);
-
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [expenseCalcTarget, setExpenseCalcTarget] = useState<'couple' | number | null>(null);
-  const [expenseItems, setExpenseItems] = useState<{ id: string, label: string, amount: number }[]>([
-    { id: '1', label: '주택(대출/월세)', amount: 150 },
-    { id: '2', label: '식비', amount: 120 },
-    { id: '3', label: '통신/공과금', amount: 30 },
-    { id: '4', label: '보험', amount: 40 },
-    { id: '5', label: '교통/차량', amount: 50 },
-    { id: '6', label: '문화/생활', amount: 80 },
-  ]);
 
   const syncAssets = async () => {
     setIsSyncing(true);
@@ -180,7 +223,12 @@ export default function App() {
   const updateIncome = (index: number, updates: Partial<IncomeSource>) => {
     const newIncomes = [...params.incomes];
     newIncomes[index] = { ...newIncomes[index], ...updates };
-    setParams({ ...params, incomes: newIncomes });
+    
+    const newParams = { ...params, incomes: newIncomes };
+    if (index === 0 && updates.currentAge !== undefined) {
+      newParams.currentAge = updates.currentAge;
+    }
+    setParams(newParams);
   };
 
   const updateChild = (index: number, updates: Partial<ChildExpenseConfig>) => {
@@ -251,9 +299,20 @@ export default function App() {
     return deathData ? deathData.assetsEnd : (baseResult.finalAssets > 0 ? baseResult.finalAssets : 0);
   }, [baseResult, params.coupleExpenses.deathAge]);
 
-  const [savingsYear, setSavingsYear] = useState(new Date().getFullYear());
+  // Sync savingsYear when result.yearlyData changes ensuring it's always valid
+  useEffect(() => {
+    if (result.yearlyData.length > 0) {
+      const years = result.yearlyData.map(d => d.year);
+      if (!years.includes(savingsYear)) {
+        setSavingsYear(result.yearlyData[0].year);
+      }
+    }
+  }, [result.yearlyData, savingsYear]);
 
   const savingsDataForYear = useMemo(() => {
+    if (!result.yearlyData || result.yearlyData.length === 0) {
+      return { year: 0, age: 0, investmentAmount: 0, assetsEnd: 0, income: 0, expenses: 0 };
+    }
     return result.yearlyData.find(d => d.year === savingsYear) || result.yearlyData[0];
   }, [result.yearlyData, savingsYear]);
 
@@ -320,22 +379,23 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 p-6 grid grid-cols-12 gap-6 max-w-[1900px] mx-auto w-full">
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-[392.433px_1fr] gap-6 max-w-[1900px] mx-auto w-full">
         
         {/* Row 1: Key Metrics */}
-        <section className="col-span-12 lg:col-span-8 order-2 lg:order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+        <section className="col-span-1 lg:col-span-1 order-2 lg:order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between h-full">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">연간 저축 금액</p>
                 <select 
-                  value={savingsYear || new Date().getFullYear()}
+                  value={savingsYear || (result.yearlyData[0]?.year) || new Date().getFullYear()}
                   onChange={(e) => setSavingsYear(parseInt(e.target.value) || new Date().getFullYear())}
-                  className="bg-slate-100 border-none rounded-lg px-2 py-0.5 text-[9px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand cursor-pointer"
+                  style={{ width: '71.3333px', fontSize: '12px' }}
+                  className="bg-slate-100 border-none rounded-lg px-2 py-0.5 font-bold text-brand outline-none focus:ring-1 focus:ring-brand cursor-pointer"
                 >
-                  {result.yearlyData.map(d => (
+                  {result.yearlyData.filter(d => !isNaN(d.year)).map(d => (
                     <option key={d.year} value={d.year}>
-                      {(d.year || 0)}년
+                      {d.year}년
                     </option>
                   ))}
                 </select>
@@ -349,7 +409,7 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="mt-2 pt-4 border-t border-slate-50 space-y-1">
+            <div className="mt-auto pt-4 border-t border-slate-50 space-y-1">
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-slate-400 text-[15px]">예상 소득</span>
                 <span className="font-bold text-green-600 text-[14px]">+{formatEok(savingsDataForYear.income)}</span>
@@ -469,8 +529,10 @@ export default function App() {
         </section>
 
         {/* Row 3: Charts & Inputs */}
-        <section className="col-span-12 lg:col-span-4 lg:row-span-2 order-1 lg:order-1 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <section className="col-span-1 lg:col-span-1 lg:row-span-2 order-1 lg:order-1 space-y-6">
+          <div 
+            className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar w-full"
+          >
             <div 
               className="flex items-center justify-between border-b border-slate-100 pb-4 cursor-pointer group"
               onClick={() => setIsPanelExpanded(!isPanelExpanded)}
@@ -499,14 +561,28 @@ export default function App() {
                     <div className="space-y-4">
                       <h3 className="text-xs font-black text-brand uppercase tracking-widest">기본 정보</h3>
                       <div className="p-4 rounded-xl bg-white shadow-sm border border-slate-50 space-y-4">
-                        <InputGroup label="현재 나이" value={params.currentAge} unit="세" min={20} max={80} onChange={(v) => setParams({...params, currentAge: v})} />
-                        <InputGroup label="현재 연도" value={params.currentYear} unit="년" min={2020} max={2100} onChange={(v) => setParams({...params, currentYear: v})} />
+                        <InputGroup 
+                          label="현재 연도" 
+                          value={params.currentYear} 
+                          unit="년" 
+                          min={2020} 
+                          max={2100} 
+                          onChange={(v) => {
+                            const delta = v - params.currentYear;
+                            setParams({
+                              ...params, 
+                              currentYear: v,
+                              currentAge: params.currentAge + delta,
+                              incomes: params.incomes.map(inc => ({ ...inc, currentAge: inc.currentAge + delta }))
+                            });
+                          }} 
+                        />
                         <div className="space-y-2">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
                             <div className="flex items-center gap-2">
                               <label className="text-[#5f5d5d]">현재 자산</label>
                             </div>
-                            <span className="text-slate-900">{params.currentAssets.toLocaleString()}만원</span>
+                            <span className="text-slate-900">{(params.currentAssets || 0).toLocaleString()}만원</span>
                           </div>
                           <input 
                             type="range" 
@@ -514,7 +590,12 @@ export default function App() {
                             max={500000} 
                             step={1}
                             value={params.currentAssets || 0} 
-                            onChange={(e) => setParams({...params, currentAssets: parseFloat(e.target.value) || 0})}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val)) {
+                                setParams({...params, currentAssets: val});
+                              }
+                            }}
                             className="w-full h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-accent"
                           />
                         </div>
@@ -549,10 +630,11 @@ export default function App() {
                       <h3 className="text-xs font-black text-brand uppercase tracking-widest">지출 항목</h3>
                       
                       <div className="p-4 rounded-xl bg-[#ffffff] space-y-4">
+                        <h3 className="font-black text-black bg-white rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>부부 지출</h3>
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
                             <label className="text-[#5f5d5d]">연간 지출</label>
-                            <span className="text-slate-900">{params.coupleExpenses.baseAmount.toLocaleString()}만원</span>
+                            <span className="text-slate-900">{(params.coupleExpenses.baseAmount || 0).toLocaleString()}만원</span>
                           </div>
                           
                           <button 
@@ -584,7 +666,7 @@ export default function App() {
                     {/* Children Expenses */}
                     {params.children.map((child, idx) => (
                       <div key={idx} className="space-y-4 p-4 rounded-xl bg-white shadow-sm border border-slate-50 mt-4">
-                        <h3 className="text-[12px] font-black text-[#020813] bg-[#eeeeee] px-2 py-1 rounded inline-block uppercase tracking-widest mb-2">{child.label} 지출</h3>
+                        <h3 className="text-[13px] font-black text-[#020813] bg-white pl-0 pr-2 py-1 rounded inline-block uppercase tracking-widest mb-2">{child.label} 지출</h3>
                         
                         <InputGroup 
                           label="출생(예정) 연도" 
@@ -598,7 +680,7 @@ export default function App() {
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
                             <label className="text-[#5f5d5d]">기초 지출</label>
-                            <span className="text-slate-900">{child.baseAmount.toLocaleString()}만원</span>
+                            <span className="text-slate-900">{(child.baseAmount || 0).toLocaleString()}만원</span>
                           </div>
                           
                           <button 
@@ -781,7 +863,7 @@ export default function App() {
         </section>
 
         {/* Dashboard Center: Chart */}
-        <section className="col-span-12 lg:col-span-8 order-3 lg:order-3 space-y-6">
+        <section className="col-span-1 lg:col-span-1 order-3 lg:order-3 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[480px]">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-sm font-bold flex items-center gap-2 text-slate-800">

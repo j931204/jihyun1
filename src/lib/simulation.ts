@@ -21,7 +21,8 @@ export function runSimulation(params: SimulationParams): SimulationResult {
   let childRunningBases = children.map(c => c.baseAmount);
 
   for (let age = currentAge; age <= targetLifeSpan; age++) {
-    const year = currentYear + (age - currentAge);
+    const year = Math.round(Number(currentYear) + (age - currentAge));
+    if (isNaN(year)) continue;
     const yearsElapsed = age - currentAge;
 
     const events: string[] = [];
@@ -150,7 +151,8 @@ function checkSurvival(params: SimulationParams, testReturn: number): boolean {
   let childBases = params.children.map(c => c.baseAmount);
 
   for (let age = params.currentAge; age <= params.targetLifeSpan; age++) {
-    const year = params.currentYear + (age - params.currentAge);
+    const year = Math.round(Number(params.currentYear) + (age - params.currentAge));
+    if (isNaN(year)) continue;
     const yearsElapsed = age - params.currentAge;
     
     let totalIncome = 0;
