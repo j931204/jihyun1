@@ -630,7 +630,7 @@ export default function App() {
                       <h3 className="text-xs font-black text-brand uppercase tracking-widest">지출 항목</h3>
                       
                       <div className="p-4 rounded-xl bg-[#ffffff] space-y-4">
-                        <h3 className="font-black text-black bg-white rounded inline-block uppercase tracking-widest mb-2" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '0.25rem' }}>부부 지출</h3>
+                        <h3 className="font-black text-black bg-white rounded inline-block uppercase tracking-widest" style={{ paddingLeft: '0px', paddingTop: '-2px', fontSize: '13px', paddingRight: '0.5rem', paddingBottom: '15px', backgroundColor: '#ffffff', marginBottom: '4px' }}>부부 지출</h3>
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight">
                             <label className="text-[#5f5d5d]">연간 지출</label>
@@ -724,12 +724,12 @@ export default function App() {
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              className="absolute bottom-full left-0 mb-3 bg-[#221f1f] text-[#fffdfd] shadow-xl rounded-xl p-3 z-50 w-[245px]"
-                              style={{ height: '67.625px', marginBottom: '7px' }}
+                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#221f1f] text-[#fffdfd] shadow-xl rounded-xl p-3 z-50 w-[261px]"
+                              style={{ height: '71.625px', marginBottom: '7px', width: '261px' }}
                             >
-                              <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-[#171717] rotate-45" />
+                              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#221f1f] rotate-45" />
                               <div className="relative flex justify-between items-start gap-2">
-                                <p className="text-[11px] text-[#eff4fa] leading-relaxed font-medium" style={{ marginTop: '-4px' }}>
+                                <p className="text-[12px] text-[#eff4fa] leading-relaxed font-medium" style={{ marginTop: '-4px', fontSize: '12px' }}>
                                   자녀 입학, 주택 마련 등 특정 시점의 생활비 변경을 반영합니다. 이후에는 조정된 금액 기준으로 물가상승률이 적용됩니다.
                                 </p>
                                 <button 
@@ -795,20 +795,31 @@ export default function App() {
                       </div>
                       
                       {/* Active Milestones List */}
-                      <div className="space-y-2">
+                      <div className="space-y-3.5 mt-8 pt-6 border-t border-slate-100">
+                        {(params.coupleExpenses.milestones.length > 0 || params.children.some(c => c.milestones.length > 0)) && (
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">추가된 조정 목록</h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                              {params.coupleExpenses.milestones.length + params.children.reduce((acc, c) => acc + c.milestones.length, 0)}개
+                            </span>
+                          </div>
+                        )}
                         {params.coupleExpenses.milestones.map((m, i) => {
                           const yearsElapsed = m.age - params.currentAge;
                           const futureValue = m.adjustmentAmount * Math.pow(1 + params.coupleExpenses.inflationRate, Math.max(0, yearsElapsed));
                           
                           return (
                             <div key={`c-${i}`} className={cn(
-                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1 transition-all hover:shadow-md",
+                              "relative flex flex-col border p-3.5 rounded-lg text-xs gap-1.5 transition-all hover:shadow-md",
                               m.adjustmentAmount < 0 
                                 ? "bg-teal-50/50 border-teal-100" 
-                                : "bg-white border-[#f67373]"
+                                : "bg-[#f5f5ec] border-[#e8e8d1]"
                             )}>
                               <div className="pr-6">
-                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}>
+                                <span 
+                                  className={cn("block font-semibold", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}
+                                  style={{ color: '#2f2d2d' }}
+                                >
                                   부부({m.reason ? `${m.reason}, ` : ''}{m.age}세) {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
                                 </span>
                                 <span className="block text-[10px] text-[#5b5c5c] font-medium leading-relaxed">
@@ -817,7 +828,7 @@ export default function App() {
                               </div>
                               <button 
                                 onClick={() => removeMilestone('couple', i)} 
-                                className="absolute top-2 right-2 text-slate-300 hover:text-rose-500 font-bold w-6 h-6 flex items-center justify-center rounded-full hover:bg-rose-50 transition-colors"
+                                className="absolute top-2.5 right-2 text-slate-300 hover:text-rose-500 font-bold w-6 h-6 flex items-center justify-center rounded-full hover:bg-rose-50 transition-colors"
                               >
                                 ×
                               </button>
@@ -830,14 +841,20 @@ export default function App() {
                           const futureValue = m.adjustmentAmount * Math.pow(1 + m.childInflationRate, Math.max(0, yearsElapsed));
 
                           return (
-                            <div key={`ch-${i}`} className={cn(
-                              "relative flex flex-col border p-2.5 rounded-lg text-xs gap-1 transition-all hover:shadow-md",
-                              m.adjustmentAmount < 0 
-                                ? "bg-teal-50/50 border-teal-100" 
-                                : "bg-white border-[#f67373]"
-                            )}>
+                            <div 
+                              key={`ch-${i}`} 
+                              className={cn(
+                                "relative flex flex-col border p-3.5 rounded-lg text-xs gap-1.5 transition-all hover:shadow-md",
+                                m.adjustmentAmount < 0 
+                                  ? "bg-teal-50/50 border-teal-100" 
+                                  : "bg-[#f5f5ec] border-[#e8e8d1]"
+                              )}
+                            >
                               <div className="pr-6">
-                                <span className={cn("block font-medium", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}>
+                                <span 
+                                  className={cn("block font-semibold", m.adjustmentAmount < 0 ? "text-teal-700" : "text-[#ca1515]")}
+                                  style={{ color: '#2f2d2d' }}
+                                >
                                   {m.childLabel}({m.reason ? `${m.reason}, ` : ''}{m.childAge}세) {m.adjustmentAmount >= 0 ? '+' : ''}{formatCurrency(m.adjustmentAmount)}
                                 </span>
                                 <span className="block text-[10px] text-[#5b5c5c] font-medium leading-relaxed">
@@ -846,7 +863,7 @@ export default function App() {
                               </div>
                               <button 
                                 onClick={() => removeMilestone(m.childLabel, m.idx)} 
-                                className="absolute top-2 right-2 text-slate-300 hover:text-rose-500 font-bold w-6 h-6 flex items-center justify-center rounded-full hover:bg-rose-50 transition-colors"
+                                className="absolute top-2.5 right-2 text-slate-300 hover:text-rose-500 font-bold w-6 h-6 flex items-center justify-center rounded-full hover:bg-rose-50 transition-colors"
                               >
                                 ×
                               </button>
